@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	carbot "github.com/olablt/carbotgo"
+	"github.com/olablt/carbot"
 )
 
 // load ads from file cache and compare with new ads

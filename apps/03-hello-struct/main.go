@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	carbot "github.com/olablt/carbotgo"
+	"github.com/olablt/carbot"
 )
 
 func main() {
