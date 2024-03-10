@@ -32,5 +32,7 @@ type Ad struct {
 	DelistedTime   time.Time `json:"delisted_time" toml:"delisted_time"`       // time when the ad was delisted
 	ScrapeTime     time.Time `json:"scrape_time" toml:"scrape_time"`           // time when the ad was scraped
 	AdvertiserAdID string    `json:"advertiser_ad_id" toml:"advertiser_ad_id"` // advertiser ad ID
-	IsNew          bool      `json:"is_new" toml:"is_new"`                     // is the ad new
+	// GUI fields
+	IsNew       bool      `json:"is_new" toml:"is_new"`             // is the ad new
+	DeletedTime time.Time `json:"deleted_time" toml:"deleted_time"` // time when the ad was deleted
 }

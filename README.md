@@ -1,8 +1,6 @@
 # TODO
 
-- add separate caching for queries ads
-    - save ads to cache file and append new ads when new ads are fetched
-    - save new ads to ads file and append new ads when new ads are fetched, user can freely delete ads file or some ads from it
+- create adminer container for database management
 - API
     - get_ads - get stored ads from all advertisers
         - response is grouped by query:

@@ -41,6 +41,7 @@ func (adsDB *AdsDB) CreateTable() error {
 			"scrape_time" DATETIME,
 			"advertiser_ad_id" TEXT,
 			"is_new" BOOLEAN DEFAULT TRUE,
+			"deleted_time" DATETIME,
 			PRIMARY KEY("id" AUTOINCREMENT)
 		); 
 		CREATE INDEX idx_ads_query_id_scrape_time ON ads (query_id, scrape_time);
@@ -54,9 +55,9 @@ func (adsDB *AdsDB) InsertOne(ad *Ad) (int, error) {
 		ad.ImageURLs = append(ad.ImageURLs, "-")
 	}
 	res, err := adsDB.DB.Exec(
-		`INSERT INTO ads(query_id, title, subtitle, price, other, description, image_url, listed_time, delisted_time, scrape_time, advertiser_ad_id) 
-		VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		ad.QueryID, ad.Title, ad.Subtitle, ad.Price, ad.Other, ad.Description, ad.ImageURLs[0], ad.ListedTime, ad.DelistedTime, ad.ScrapeTime, ad.AdvertiserAdID)
+		`INSERT INTO ads(query_id, title, subtitle, price, other, description, image_url, listed_time, delisted_time, scrape_time, advertiser_ad_id, is_new, deleted_time)
+		VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		ad.QueryID, ad.Title, ad.Subtitle, ad.Price, ad.Other, ad.Description, ad.ImageURLs[0], ad.ListedTime, ad.DelistedTime, ad.ScrapeTime, ad.AdvertiserAdID, ad.IsNew, ad.DeletedTime)
 
 	if err != nil {
 		return 0, err
@@ -76,8 +77,8 @@ func (adsDB *AdsDB) InsertMany(ads []Ad) error {
 		return err
 	}
 	stmt, err := tx.Prepare(
-		`INSERT INTO ads(query_id, title, subtitle, price, other, description, image_url, listed_time, delisted_time, scrape_time, advertiser_ad_id)
-		VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		`INSERT INTO ads(query_id, title, subtitle, price, other, description, image_url, listed_time, delisted_time, scrape_time, advertiser_ad_id, is_new, deleted_time)
+		VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
@@ -86,7 +87,7 @@ func (adsDB *AdsDB) InsertMany(ads []Ad) error {
 		if len(ad.ImageURLs) == 0 {
 			ad.ImageURLs = append(ad.ImageURLs, "-")
 		}
-		_, err = stmt.Exec(ad.QueryID, ad.Title, ad.Subtitle, ad.Price, ad.Other, ad.Description, ad.ImageURLs[0], ad.ListedTime, ad.DelistedTime, ad.ScrapeTime, ad.AdvertiserAdID)
+		_, err = stmt.Exec(ad.QueryID, ad.Title, ad.Subtitle, ad.Price, ad.Other, ad.Description, ad.ImageURLs[0], ad.ListedTime, ad.DelistedTime, ad.ScrapeTime, ad.AdvertiserAdID, ad.IsNew, ad.DeletedTime)
 		if err != nil {
 			return err
 		}
@@ -149,7 +150,8 @@ func (adsDB *AdsDB) Update(ad Ad) error {
 	}
 	_, err = adsDB.DB.Exec(
 		`UPDATE ads 
-		SET query_id = ?, title = ?, subtitle = ?, price = ?, other = ?, description = ?, image_url = ?, listed_time = ?, delisted_time = ?, scrape_time = ?, advertiser_ad_id = ? WHERE id = ?`,
+		SET query_id = ?, title = ?, subtitle = ?, price = ?, other = ?, description = ?, image_url = ?, listed_time = ?, delisted_time = ?, scrape_time = ?, advertiser_ad_id = ?, is_new = ?, deleted_time = ?
+		WHERE id = ?`,
 		orig.QueryID, orig.Title, orig.Subtitle, orig.Price, orig.Other, orig.Description, imageURL, orig.ListedTime, orig.DelistedTime, orig.ScrapeTime, orig.AdvertiserAdID, orig.ID)
 	return err
 }
@@ -172,6 +174,8 @@ func (adsDB *AdsDB) GetAd(id int) (*Ad, error) {
 			&ad.DelistedTime,
 			&ad.ScrapeTime,
 			&ad.AdvertiserAdID,
+			&ad.IsNew,
+			&ad.DeletedTime,
 		)
 	ad.ImageURLs = append(ad.ImageURLs, imageURL)
 	return &ad, err
@@ -202,6 +206,7 @@ func (adsDB *AdsDB) GetAds() ([]Ad, error) {
 			&ad.ScrapeTime,
 			&ad.AdvertiserAdID,
 			&ad.IsNew,
+			&ad.DeletedTime,
 		)
 		ad.ImageURLs = append(ad.ImageURLs, imageURL)
 		ads = append(ads, ad)
@@ -234,6 +239,7 @@ func (adsDB *AdsDB) GetAdsByQueryID(queryID int) ([]Ad, error) {
 			&ad.ScrapeTime,
 			&ad.AdvertiserAdID,
 			&ad.IsNew,
+			&ad.DeletedTime,
 		)
 		ad.ImageURLs = append(ad.ImageURLs, imageURL)
 		ads = append(ads, ad)

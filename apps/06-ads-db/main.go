@@ -28,7 +28,7 @@ func main() {
 				log.Println("[main] Error processing query:", err)
 			} else {
 				// log summary
-				log.Printf("[main] Loaded Ads: %v", len(scrapedAds))
+				log.Printf("[main] Scraped Ads: %v", len(scrapedAds))
 			}
 
 			if len(scrapedAds) > 0 {
@@ -54,7 +54,7 @@ func printAds(ads []carbot.Ad) {
 
 // load ads from file cache and compare with new ads
 func updateAdsCache(q *carbot.Query, scrapedAds []carbot.Ad) {
-	carDB, err := openCarbotDB(confDir)
+	carDB, err := carbot.OpenCarbotDB(confDir)
 	if err != nil {
 		log.Fatal("[DEBUG] error opening database", err)
 	}
