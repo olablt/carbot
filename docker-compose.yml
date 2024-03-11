@@ -1,0 +1,30 @@
+version: "2"
+
+networks:
+    code-network:
+        driver: bridge
+
+services:
+
+
+  # http://localhost:7777/
+  # System: SQLite3
+  # Database: /home/bob/Projects/autoplius/apps/06-ads-db/.conf/carbot.db
+  # Database: /apps/06-ads-db/db/carbot.db
+  # sudo chmod 755 -R docker/adminer-plugins
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    volumes:
+      # - ./docker/adminer-plugins/:/var/www/html/plugins-enabled/
+      - ./docker/adminer-plugins/login-password-less.php:/var/www/html/plugins-enabled/login-password-less.php
+      - ./apps/:/apps/
+    # environment:
+      # ADMINER_DEFAULT_SERVER: percona-slave
+      # ADMINER_PLUGINS: login-password-less # https://github.com/vrana/adminer/tree/master/plugins
+      # ADMINER_DESIGN: 'nette' # https://github.com/vrana/adminer/tree/master/designs
+    networks:
+      - code-network
+    restart: always
+    ports:
+      - 7777:8080

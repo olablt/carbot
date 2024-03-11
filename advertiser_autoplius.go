@@ -86,6 +86,10 @@ func (a *Autoplius) parseAnnouncements(doc *goquery.Document) ([]Ad, error) {
 
 	// Find the review items
 	doc.Find(".announcement-item").Each(func(i int, s *goquery.Selection) {
+		// get the ad URL
+		// ad_url := s.AttrOr("href", "")
+		ad_url, _ := s.Attr("href")
+		// log.Println("ad_url: ", ad_url)
 		// get the title
 		title := s.Find(".announcement-title").Text()
 		title = strings.TrimSpace(title)
@@ -121,6 +125,7 @@ func (a *Autoplius) parseAnnouncements(doc *goquery.Document) ([]Ad, error) {
 			Other:      params,
 			ImageURLs:  []string{imageURL},
 			ScrapeTime: time.Now(),
+			AdURL:      ad_url,
 		}
 		ad.AdvertiserAdID = ad.ImageURLs[0]
 		announcements = append(announcements, ad)

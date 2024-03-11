@@ -10,7 +10,7 @@ import (
 type AdsDB struct {
 	DB        *sql.DB
 	TableName string
-	// dataDir string
+	FilePath  string
 }
 
 func (adsDB *AdsDB) TableExists() bool {
@@ -24,6 +24,26 @@ func (adsDB *AdsDB) TableExists() bool {
 	return count > 0
 }
 
+//	type Ad struct {
+//		ID           int       `json:"-" toml:"-"`                         // our ad ID
+//		QueryID      int       `json:"-" toml:"-"`                         // our query ID
+//		Title        string    `json:"title" toml:"title"`                 // ad title and subtitle
+//		Subtitle     string    `json:"subtitle" toml:"subtitle"`           // ad title and subtitle
+//		Price        string    `json:"price" toml:"price"`                 // ad price
+//		Other        string    `json:"other" toml:"other"`                 // other ad information
+//		Description  string    `json:"description" toml:"description"`     // ad description
+//		ListedTime   time.Time `json:"-" toml:"-"`                         // time when the ad was listed
+//		DelistedTime time.Time `json:"delisted_time" toml:"delisted_time"` // time when the ad was delisted
+//		ScrapeTime   time.Time `json:"scrape_time" toml:"scrape_time"`     // time when the ad was scraped
+//		// GUI fields
+//		IsNew       bool      `json:"is_new" toml:"is_new"`             // is the ad new
+//		DeletedTime time.Time `json:"deleted_time" toml:"deleted_time"` // time when the ad was deleted
+//		//
+//		AdURL          string   `json:"ad_url" toml:"ad_url"`                     // ad URL
+//		ImageURLs      []string `json:"image_urls" toml:"image_urls"`             // ad images URL
+//		AdvertiserAdID string   `json:"advertiser_ad_id" toml:"advertiser_ad_id"` // advertiser ad ID
+//	}
+//
 // CreateTable creates the ads table in the database.
 func (adsDB *AdsDB) CreateTable() error {
 	_, err := adsDB.DB.Exec(`
@@ -35,13 +55,14 @@ func (adsDB *AdsDB) CreateTable() error {
 			"price" TEXT,
 			"other" TEXT,
 			"description" TEXT,
-			"image_url" TEXT,
 			"listed_time" DATETIME,
 			"delisted_time" DATETIME,
 			"scrape_time" DATETIME,
-			"advertiser_ad_id" TEXT,
 			"is_new" BOOLEAN DEFAULT TRUE,
 			"deleted_time" DATETIME,
+			"ad_url" TEXT,
+			"image_url" TEXT,
+			"advertiser_ad_id" TEXT,
 			PRIMARY KEY("id" AUTOINCREMENT)
 		); 
 		CREATE INDEX idx_ads_query_id_scrape_time ON ads (query_id, scrape_time);
@@ -50,14 +71,20 @@ func (adsDB *AdsDB) CreateTable() error {
 }
 
 // InsertOne inserts a single ad into the db.
-func (adsDB *AdsDB) InsertOne(ad *Ad) (int, error) {
+func (adsDB *AdsDB) Insert(ad *Ad) (int, error) {
 	if len(ad.ImageURLs) == 0 {
 		ad.ImageURLs = append(ad.ImageURLs, "-")
 	}
+	// SET query_id = ?, title = ?, subtitle = ?, price = ?, other = ?, description = ?, listed_time = ?, delisted_time = ?, scrape_time = ?, is_new = ?, deleted_time = ?, ad_url = ?, image_url = ?, advertiser_ad_id = ? WHERE id = ?`,
 	res, err := adsDB.DB.Exec(
-		`INSERT INTO ads(query_id, title, subtitle, price, other, description, image_url, listed_time, delisted_time, scrape_time, advertiser_ad_id, is_new, deleted_time)
-		VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		ad.QueryID, ad.Title, ad.Subtitle, ad.Price, ad.Other, ad.Description, ad.ImageURLs[0], ad.ListedTime, ad.DelistedTime, ad.ScrapeTime, ad.AdvertiserAdID, ad.IsNew, ad.DeletedTime)
+		`INSERT INTO ads(query_id, title, subtitle, price, other, description, listed_time, delisted_time, scrape_time, is_new, deleted_time, ad_url, image_url, advertiser_ad_id)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		ad.QueryID, ad.Title, ad.Subtitle, ad.Price, ad.Other, ad.Description, ad.ListedTime, ad.DelistedTime, ad.ScrapeTime, ad.IsNew, ad.DeletedTime, ad.AdURL, ad.ImageURLs[0], ad.AdvertiserAdID)
+
+	// res, err := adsDB.DB.Exec(
+	// 	`INSERT INTO ads(query_id, title, subtitle, price, other, description, image_url, listed_time, delisted_time, scrape_time, advertiser_ad_id, is_new, deleted_time)
+	// 	VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+	// 	ad.QueryID, ad.Title, ad.Subtitle, ad.Price, ad.Other, ad.Description, ad.ImageURLs[0], ad.ListedTime, ad.DelistedTime, ad.ScrapeTime, ad.AdvertiserAdID, ad.IsNew, ad.DeletedTime)
 
 	if err != nil {
 		return 0, err
@@ -77,8 +104,11 @@ func (adsDB *AdsDB) InsertMany(ads []Ad) error {
 		return err
 	}
 	stmt, err := tx.Prepare(
-		`INSERT INTO ads(query_id, title, subtitle, price, other, description, image_url, listed_time, delisted_time, scrape_time, advertiser_ad_id, is_new, deleted_time)
-		VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		`INSERT INTO ads(query_id, title, subtitle, price, other, description, listed_time, delisted_time, scrape_time, is_new, deleted_time, ad_url, image_url, advertiser_ad_id)
+		VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+	// stmt, err := tx.Prepare(
+	// 	`INSERT INTO ads(query_id, title, subtitle, price, other, description, image_url, listed_time, delisted_time, scrape_time, advertiser_ad_id, is_new, deleted_time)
+	// 	VALUES(? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return err
 	}
@@ -87,7 +117,9 @@ func (adsDB *AdsDB) InsertMany(ads []Ad) error {
 		if len(ad.ImageURLs) == 0 {
 			ad.ImageURLs = append(ad.ImageURLs, "-")
 		}
-		_, err = stmt.Exec(ad.QueryID, ad.Title, ad.Subtitle, ad.Price, ad.Other, ad.Description, ad.ImageURLs[0], ad.ListedTime, ad.DelistedTime, ad.ScrapeTime, ad.AdvertiserAdID, ad.IsNew, ad.DeletedTime)
+		// _, err = stmt.Exec(ad.QueryID, ad.Title, ad.Subtitle, ad.Price, ad.Other, ad.Description, ad.ImageURLs[0], ad.ListedTime, ad.DelistedTime, ad.ScrapeTime, ad.AdvertiserAdID, ad.IsNew, ad.DeletedTime)
+		_, err = stmt.Exec(ad.QueryID, ad.Title, ad.Subtitle, ad.Price, ad.Other, ad.Description, ad.ListedTime, ad.DelistedTime, ad.ScrapeTime, ad.IsNew, ad.DeletedTime, ad.AdURL, ad.ImageURLs[0], ad.AdvertiserAdID)
+
 		if err != nil {
 			return err
 		}
@@ -141,20 +173,41 @@ func (adsDB *AdsDB) Update(ad Ad) error {
 	// Get the existing state of the ad we want to update.
 	orig, err := adsDB.GetAd(ad.ID)
 	if err != nil {
+		// log.Println("Error getting ad from the database: ", err)
 		return err
 	}
 	orig.merge(ad)
+	// log.Printf("after merge %+v", orig)
 	imageURL := orig.ImageURLs[0]
 	if len(ad.ImageURLs) > 0 {
 		imageURL = ad.ImageURLs[0]
 	}
 	_, err = adsDB.DB.Exec(
-		`UPDATE ads 
-		SET query_id = ?, title = ?, subtitle = ?, price = ?, other = ?, description = ?, image_url = ?, listed_time = ?, delisted_time = ?, scrape_time = ?, advertiser_ad_id = ?, is_new = ?, deleted_time = ?
-		WHERE id = ?`,
-		orig.QueryID, orig.Title, orig.Subtitle, orig.Price, orig.Other, orig.Description, imageURL, orig.ListedTime, orig.DelistedTime, orig.ScrapeTime, orig.AdvertiserAdID, orig.ID)
+		`UPDATE ads
+		SET query_id = ?, title = ?, subtitle = ?, price = ?, other = ?, description = ?, listed_time = ?, delisted_time = ?, scrape_time = ?, is_new = ?, deleted_time = ?, ad_url = ?, image_url = ?, advertiser_ad_id = ? WHERE id = ?`,
+		orig.QueryID, orig.Title, orig.Subtitle, orig.Price, orig.Other, orig.Description, orig.ListedTime, orig.DelistedTime, orig.ScrapeTime, orig.IsNew, orig.DeletedTime, orig.AdURL, imageURL, orig.AdvertiserAdID, orig.ID)
+	if err != nil {
+		log.Println("Error updating ad in the database: ", err)
+	}
+
 	return err
 }
+
+// func (t *taskDB) update(task task) error {
+// 	// Get the existing state of the task we want to update.
+// 	orig, err := t.getTask(task.ID)
+// 	if err != nil {
+// 		return err
+// 	}
+// 	orig.merge(task)
+// 	_, err = t.db.Exec(
+// 		"UPDATE tasks SET name = ?, project = ?, status = ? WHERE id = ?",
+// 		orig.Name,
+// 		orig.Project,
+// 		orig.Status,
+// 		orig.ID)
+// 	return err
+// }
 
 // GetAd returns the ad from the db.
 func (adsDB *AdsDB) GetAd(id int) (*Ad, error) {
@@ -169,14 +222,18 @@ func (adsDB *AdsDB) GetAd(id int) (*Ad, error) {
 			&ad.Price,
 			&ad.Other,
 			&ad.Description,
-			&imageURL,
 			&ad.ListedTime,
 			&ad.DelistedTime,
 			&ad.ScrapeTime,
-			&ad.AdvertiserAdID,
 			&ad.IsNew,
 			&ad.DeletedTime,
+			&ad.AdURL,
+			&imageURL,
+			&ad.AdvertiserAdID,
 		)
+	if err != nil {
+		return nil, err
+	}
 	ad.ImageURLs = append(ad.ImageURLs, imageURL)
 	return &ad, err
 }
@@ -186,6 +243,7 @@ func (adsDB *AdsDB) GetAds() ([]Ad, error) {
 	rows, err := adsDB.DB.Query("SELECT * FROM ads")
 	defer rows.Close()
 	if err != nil {
+		log.Println("GetAds Error getting ads from the database: ", err)
 		return nil, err
 	}
 	var ads []Ad
@@ -200,16 +258,20 @@ func (adsDB *AdsDB) GetAds() ([]Ad, error) {
 			&ad.Price,
 			&ad.Other,
 			&ad.Description,
-			&imageURL,
 			&ad.ListedTime,
 			&ad.DelistedTime,
 			&ad.ScrapeTime,
-			&ad.AdvertiserAdID,
 			&ad.IsNew,
 			&ad.DeletedTime,
+			&ad.AdURL,
+			&imageURL,
+			&ad.AdvertiserAdID,
 		)
 		ad.ImageURLs = append(ad.ImageURLs, imageURL)
 		ads = append(ads, ad)
+	}
+	if err != nil {
+		log.Println("GetAds Error scanning ads from the database: ", err)
 	}
 	return ads, err
 }
@@ -233,13 +295,14 @@ func (adsDB *AdsDB) GetAdsByQueryID(queryID int) ([]Ad, error) {
 			&ad.Price,
 			&ad.Other,
 			&ad.Description,
-			&imageURL,
 			&ad.ListedTime,
 			&ad.DelistedTime,
 			&ad.ScrapeTime,
-			&ad.AdvertiserAdID,
 			&ad.IsNew,
 			&ad.DeletedTime,
+			&ad.AdURL,
+			&imageURL,
+			&ad.AdvertiserAdID,
 		)
 		ad.ImageURLs = append(ad.ImageURLs, imageURL)
 		ads = append(ads, ad)

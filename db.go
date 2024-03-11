@@ -13,7 +13,7 @@ func OpenCarbotDB(path string) (*AdsDB, error) {
 		return nil, err
 	}
 	// t := carbot.AdsDB{db, path}
-	adsDB := AdsDB{db, "ads"}
+	adsDB := AdsDB{DB: db, TableName: "ads", FilePath: path}
 	if !adsDB.TableExists() {
 		log.Println("[DEBUG] Table ads does not exist, creating it")
 		err := adsDB.CreateTable()
